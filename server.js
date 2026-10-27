@@ -252,6 +252,7 @@ async function setupDatabase() {
 
   await pool.query(`UPDATE requests SET status='pending' WHERE status IS NULL;`);
   // Legacy collaboration tables can contain older NOT NULL columns.
+  await pool.query(`ALTER TABLE collaborations ADD COLUMN IF NOT EXISTS contact TEXT;`);
   // Make existing form fields nullable so the current form can submit safely.
   await pool.query(`
     ALTER TABLE collaborations
