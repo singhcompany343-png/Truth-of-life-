@@ -1959,7 +1959,47 @@ app.patch('/api/admin/users/:id/status',adminAuth,async(req,res)=>{
  try{await pool.query(`INSERT INTO learning_user_status(user_id,is_active,deactivated_at) VALUES($1,$2,CASE WHEN $2 THEN NULL ELSE NOW() END) ON CONFLICT(user_id) DO UPDATE SET is_active=EXCLUDED.is_active,deactivated_at=EXCLUDED.deactivated_at,updated_at=NOW()`,[Number(req.params.id),active]);res.json({ok:true,active});}
  catch(e){res.status(500).json({error:'Could not update student status.'});}
 });
+// TEMPORARY ADMIN PASSWORD RESET — REMOVE AFTER USE
+app.post("/api/admin/reset-password", async (req, res) => {
+  const suppliedToken = String(req.body.token || "");
+  const resetToken = process.env.ADMIN_RESET_TOKEN || "";
+  const username = String(req.body.username || "").trim();
+  const newPassword = String(req.body.newPassword || "");
 
+  if (!resetToken || suppliedToken !== resetToken) {
+    return res.status(403).json({ error: "Invalid reset token." });
+  }
+
+  if (newPassword.length < 8) {
+    return res.status(400).json({
+      error: "Password must be at least 8 characters."
+    });
+  }
+
+  try {
+    const hash = await bcrypt.hash(newPassword, 12);
+
+    const result = await pool.query(
+      `UPDATE admins
+       SET password_hash = $1
+       WHERE LOWER(username) = LOWER($2)
+       RETURNING username`,
+      [hash, username]
+    );
+
+    if (!result.rowCount) {
+      return res.status(404).json({ error: "Admin username not found." });
+    }
+
+    return res.json({
+      success: true,
+      message: "Admin password reset successfully."
+    });
+  } catch (error) {
+    console.error("Admin password reset failed:", error.message);
+    return res.status(500).json({ error: "Password reset failed." });
+  }
+});
 // =========================
 // START SERVER
 // =========================
