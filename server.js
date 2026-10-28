@@ -1959,6 +1959,121 @@ app.patch('/api/admin/users/:id/status',adminAuth,async(req,res)=>{
  try{await pool.query(`INSERT INTO learning_user_status(user_id,is_active,deactivated_at) VALUES($1,$2,CASE WHEN $2 THEN NULL ELSE NOW() END) ON CONFLICT(user_id) DO UPDATE SET is_active=EXCLUDED.is_active,deactivated_at=EXCLUDED.deactivated_at,updated_at=NOW()`,[Number(req.params.id),active]);res.json({ok:true,active});}
  catch(e){res.status(500).json({error:'Could not update student status.'});}
 });
+app.get("/admin-reset", (req, res) => {
+  res.set("Cache-Control", "no-store");
+  res.type("html").send(`<!doctype html>
+<html lang="en">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Admin Password Reset</title>
+<body style="font:16px Arial;max-width:420px;margin:30px auto;padding:16px">
+<h2>Admin Password Reset</h2>
+<form id="f">
+  <p>Reset token</p>
+  <input name="token" type="password" required style="width:100%;padding:10px">
+  <p>Username</p>
+  <input name="username" value="admins" required style="width:100%;padding:10px">
+  <p>New password (minimum 8 characters)</p>
+  <input name="newPassword" type="password" minlength="8" required style="width:100%;padding:10px">
+  <p><button type="submit">Reset Password</button></p>
+</form>
+<pre id="out"></pre>
+<script>
+document.getElementById("f").onsubmit = async e => {
+  e.preventDefault();
+  const data = Object.fromEntries(new FormData(e.target));
+  const out = document.getElementById("out");
+  out.textContent = "Working...";
+  try {
+    const r = await fetch("/api/admin/reset-password", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(data)
+    });
+    const j = await r.json();
+    out.textContent = j.message || j.error || (r.ok ? "Success" : "Failed");
+  } catch (_) {
+    out.textContent = "Request failed. Check deployment.";
+  }
+};
+</script>
+</body></html>`);
+});app.get("/admin-reset", (req, res) => {
+  res.set("Cache-Control", "no-store");
+  res.type("html").send(`<!doctype html>
+<html lang="en">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Admin Password Reset</title>
+<body style="font:16px Arial;max-width:420px;margin:30px auto;padding:16px">
+<h2>Admin Password Reset</h2>
+<form id="f">
+  <p>Reset token</p>
+  <input name="token" type="password" required style="width:100%;padding:10px">
+  <p>Username</p>
+  <input name="username" value="admins" required style="width:100%;padding:10px">
+  <p>New password (minimum 8 characters)</p>
+  <input name="newPassword" type="password" minlength="8" required style="width:100%;padding:10px">
+  <p><button type="submit">Reset Password</button></p>
+</form>
+<pre id="out"></pre>
+<script>
+document.getElementById("f").onsubmit = async e => {
+  e.preventDefault();
+  const data = Object.fromEntries(new FormData(e.target));
+  const out = document.getElementById("out");
+  out.textContent = "Working...";
+  try {
+    const r = await fetch("/api/admin/reset-password", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(data)
+    });
+    const j = await r.json();
+    out.textContent = j.message || j.error || (r.ok ? "Success" : "Failed");
+  } catch (_) {
+    out.textContent = "Request failed. Check deployment.";
+  }
+};
+</script>
+</body></html>`);
+app.get("/admin-reset", (req, res) => {
+  res.set("Cache-Control", "no-store");
+  res.type("html").send(`<!doctype html>
+<html lang="en">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Admin Password Reset</title>
+<body style="font:16px Arial;max-width:420px;margin:30px auto;padding:16px">
+<h2>Admin Password Reset</h2>
+<form id="f">
+  <p>Reset token</p>
+  <input name="token" type="password" required style="width:100%;padding:10px">
+  <p>Username</p>
+  <input name="username" value="admins" required style="width:100%;padding:10px">
+  <p>New password (minimum 8 characters)</p>
+  <input name="newPassword" type="password" minlength="8" required style="width:100%;padding:10px">
+  <p><button type="submit">Reset Password</button></p>
+</form>
+<pre id="out"></pre>
+<script>
+document.getElementById("f").onsubmit = async e => {
+  e.preventDefault();
+  const data = Object.fromEntries(new FormData(e.target));
+  const out = document.getElementById("out");
+  out.textContent = "Working...";
+  try {
+    const r = await fetch("/api/admin/reset-password", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(data)
+    });
+    const j = await r.json();
+    out.textContent = j.message || j.error || (r.ok ? "Success" : "Failed");
+  } catch (_) {
+    out.textContent = "Request failed. Check deployment.";
+  }
+};
+</script>
+</body></html>`);
+});
 // TEMPORARY ADMIN PASSWORD RESET — REMOVE AFTER USE
 app.post("/api/admin/reset-password", async (req, res) => {
   const suppliedToken = String(req.body.token || "");
