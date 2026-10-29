@@ -1780,8 +1780,8 @@ app.post('/api/learning/attempts',auth,requireActiveStudent,async(req,res)=>{
   if(!Number.isInteger(subjectId)||subjectId<1)return res.status(400).json({error:'Valid subject_id required.'});
   try{
     const sub=await pool.query(`SELECT id,name FROM learning_subjects WHERE id=$1 AND active=true`,[subjectId]);if(!sub.rowCount)return res.status(404).json({error:'Subject not found.'});
-    const args=[subjectId];let where='subject_id=$1 AND active=true';if(chapter){args.push(chapter);where+=' AND chapter=$2';}
-    const qs=await pool.query(`SELECT id FROM learning_questions WHERE ${where} ORDER BY random() LIMIT ${questionCount}`,args);
+    const args=[subjectId];let where='q.subject_id=$1 AND q.active=true';if(chapter){args.push(chapter);where+=` AND q.chapter=$${args.length}`;}args.push(req.user.id);where+=` AND NOT EXISTS (SELECT 1 FROM learning_attempt_items ai JOIN learning_attempts olda ON olda.id=ai.attempt_id WHERE olda.user_id=$${args.length} AND ai.question_id=q.id)`;
+    const qs=await pool.query(`SELECT q.id FROM learning_questions q WHERE ${where} ORDER BY random() LIMIT ${questionCount}`,args);
     if(qs.rowCount<questionCount)return res.status(409).json({error:`Only ${qs.rowCount}/${questionCount} questions are available for this selection.`});
     const duration=questionCount===50?1800:720;
     const client=await pool.connect();try{await client.query('BEGIN');const a=await client.query(`INSERT INTO learning_attempts(user_id,subject_id,chapter,question_count,duration_seconds) VALUES($1,$2,$3,$4,$5) RETURNING id`,[req.user.id,subjectId,chapter,questionCount,duration]);for(let i=0;i<qs.rows.length;i++)await client.query(`INSERT INTO learning_attempt_items(attempt_id,question_id,position) VALUES($1,$2,$3)`,[a.rows[0].id,qs.rows[i].id,i+1]);await client.query('COMMIT');res.status(201).json({attempt_id:a.rows[0].id,question_number:1,total:questionCount,duration_seconds:duration});}finally{client.release();}
@@ -2043,29 +2043,7 @@ app.post("/api/admin/reset-password", async (req, res) => {
 // =========================
 
 setupDatabase()
-  .then(async () => {
-    // Create/update the admin account automatically during startup when
-    // ADMIN_USERNAME and ADMIN_PASSWORD are configured in Render.
-    // This avoids requiring Render Shell for initial admin setup.
-    const configuredAdminUsername = String(process.env.ADMIN_USERNAME || "").trim();
-    const configuredAdminPassword = String(process.env.ADMIN_PASSWORD || "");
-
-    if (configuredAdminUsername && configuredAdminPassword) {
-      if (configuredAdminPassword.length < 8) {
-        throw new Error("ADMIN_PASSWORD must be at least 8 characters.");
-      }
-
-      const adminHash = await bcrypt.hash(configuredAdminPassword, 12);
-      await pool.query(
-        `INSERT INTO admins (username, password_hash)
-         VALUES ($1, $2)
-         ON CONFLICT (username)
-         DO UPDATE SET password_hash = EXCLUDED.password_hash`,
-        [configuredAdminUsername, adminHash]
-      );
-      console.log(`Admin account created/updated from environment: ${configuredAdminUsername}`);
-    }
-
+  .then(() => {
     app.listen(PORT, () => {
       console.log(
         `truth.oflifes server running on port ${PORT}`

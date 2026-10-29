@@ -312,7 +312,7 @@ header{width:100%;padding:14px max(14px,calc((100% - 1180px)/2));box-sizing:bord
         <input id="title" placeholder="Resource Title" required>
         <select id="type" required>
           <option value="">Select Type</option>
-          <option>Notes</option><option>PPT</option><option>Question Paper</option><option>Other</option>
+          <option>Notes</option><option>PPT</option><option>Question Paper</option><option>Video</option><option>Other</option>
         </select>
       </div>
       <select id="subject">
@@ -320,9 +320,10 @@ header{width:100%;padding:14px max(14px,calc((100% - 1180px)/2));box-sizing:bord
       </select>
       <select id="chapter"><option value="">Select Chapter</option></select>
       <div class="pdfUploadBox">
-      <label style="display:block;margin-bottom:6px;font-weight:700">📄 PDF File</label>
-      <input id="pdf_file" type="file" accept="application/pdf,.pdf">
-      <div class="muted" style="font-size:12px;margin-top:5px">Direct PDF storage · maximum 15 MB</div>
+      <label style="display:block;margin-bottom:6px;font-weight:700">📄 PDF or 🎬 Video File</label>
+      <input id="pdf_file" type="file" accept="application/pdf,.pdf,video/mp4,video/webm,video/ogg,.mp4,.webm,.ogv">
+      <label style="display:block;margin:10px 0 6px;font-weight:700">Video/PDF URL (optional)</label><input id="resource_url" type="url" placeholder="https://… YouTube or direct media URL">
+      <div class="muted" style="font-size:12px;margin-top:5px">PDF up to 15 MB · uploaded video up to 25 MB; larger videos can use a URL</div>
     </div>
       <textarea id="description" placeholder="Description (optional)"></textarea>
       <div class="actions">
@@ -338,13 +339,38 @@ header{width:100%;padding:14px max(14px,calc((100% - 1180px)/2));box-sizing:bord
     <div class="filters">
       <input id="resourceSearch" oninput="renderResources()" placeholder="🔎 Search title, subject...">
       <select id="resourceFilter" onchange="renderResources()">
-        <option value="">All Types</option><option>Notes</option><option>PPT</option><option>Question Paper</option><option>Other</option>
+        <option value="">All Types</option><option>Notes</option><option>PPT</option><option>Question Paper</option><option>Video</option><option>Other</option>
       </select>
       <select id="subjectFilter" onchange="renderResources()">
         <option value="">All Subjects</option>
       </select>
     </div>
     <div id="resourceList" class="scrollBox"></div>
+  </section>
+
+  <section class="panel" id="mcqManager">
+    <h3>🧠 Chapter-wise MCQ Manager</h3>
+    <p class="muted">Subject aur chapter select karke unique questions add/edit/delete karein. Four options aur correct answer required hain.</p>
+    <form id="mcqForm">
+      <input id="mcqId" type="hidden">
+      <div class="row"><select id="mcqSubject" required><option value="">Loading subjects…</option></select><input id="mcqChapter" required placeholder="Chapter name (e.g. Hand Hygiene / General Anatomy)"></div>
+      <textarea id="mcqQuestion" required placeholder="Question"></textarea>
+      <div class="row"><input id="mcqA" required placeholder="Option A"><input id="mcqB" required placeholder="Option B"></div>
+      <div class="row"><input id="mcqC" required placeholder="Option C"><input id="mcqD" required placeholder="Option D"></div>
+      <div class="row"><select id="mcqCorrect"><option value="0">Correct: A</option><option value="1">Correct: B</option><option value="2">Correct: C</option><option value="3">Correct: D</option></select><select id="mcqDifficulty"><option value="basic">Basic</option><option value="intermediate">Intermediate</option><option value="advanced">Advanced</option></select></div>
+      <textarea id="mcqExplanation" placeholder="Explanation (optional)"></textarea>
+      <div class="actions"><button class="btn" type="submit" id="mcqSave">＋ Add Question</button><button class="muted" type="button" onclick="resetMcqForm()">Clear</button><button class="muted" type="button" onclick="loadMcqs()">Refresh Questions</button></div><div id="mcqMsg" class="empty"></div>
+    </form>
+    <div class="filters"><input id="mcqSearch" placeholder="Search question…" oninput="renderMcqs()"><select id="mcqSubjectFilter" onchange="loadMcqs()"><option value="">All Subjects</option></select><input id="mcqChapterFilter" placeholder="Filter chapter" oninput="renderMcqs()"></div>
+    <div id="mcqList" class="scrollBox"></div><div id="mcqStats" class="muted"></div>
+  </section>
+  <section class="panel" id="certificateManager">
+    <h3>🏅 Certificates — Manual Create & Issued</h3>
+    <form id="manualCertificateForm"><div class="row"><select id="certUser" required><option value="">Select student</option></select><select id="certSubject" required><option value="">Select subject</option></select></div>
+      <div class="row"><input id="certCourse" required maxlength="120" placeholder="Course / chapter name"><input id="certScore" required type="number" min="0" placeholder="Marks obtained"></div>
+      <div class="row"><input id="certMax" required type="number" min="1" value="100" placeholder="Maximum marks"><input id="certPercent" readonly placeholder="Percentage auto-calculated"></div>
+      <div class="actions"><button class="btn" type="submit">＋ Create Certificate</button><button class="muted" type="button" onclick="loadCertificates()">Refresh Certificates</button></div><div id="certMsg" class="empty"></div>
+    </form><div id="certificateList" class="scrollBox"></div>
   </section>
 
   <section class="panel">
@@ -478,7 +504,7 @@ function logout(){
 async function loadAll(){
   try{
     const [v,u,r,an,req,co,n,pr,ov]=await Promise.all([
-      api("/api/visits"),api("/api/users"),api("/api/resources"),
+      api("/api/visits"),api("/api/users"),api("/api/admin/resources"),
       api("/api/analytics/visits"),api("/api/requests"),api("/api/collaborations"),
       api("/api/admin/notifications"),api("/api/admin/password-reset-requests"),api("/api/admin/analytics/overview")
     ]);
@@ -493,6 +519,7 @@ async function loadAll(){
     const pop=ov.popular||[];
     document.getElementById("popularResources").innerHTML=pop.length?pop.map((x,i)=>`<div class="item"><b>${i+1}. ${esc(x.title)}</b><div class="meta">${esc(x.type)}${x.subject?" · "+esc(x.subject):""} · ${Number(x.downloads||0)} downloads</div></div>`).join(""):"No downloads yet.";
     renderSubjects();renderResources();renderUsers();renderRequests();renderCollabs();renderResets();renderChart(an.days||[]); updateNotifications(n);
+    loadLearningSubjects(); loadMcqs(); loadCertificates();
   }catch(e){console.error(e);}
 }
 
@@ -588,7 +615,7 @@ function renderResources(){
       <div class="meta"><span class="typeBadge ${String(r.type||"").toLowerCase()==="notes"?"notes":String(r.type||"").toLowerCase()==="ppt"?"ppt":"other"}">${String(r.type||"").toLowerCase()==="notes"?"💚":String(r.type||"").toLowerCase()==="ppt"?"🟣":"📘"} ${esc(r.type)}</span>${esc(r.subject||"No subject")}${r.chapter?" · "+esc(r.chapter):""} · ${date(r.created_at)}</div>
       ${r.description?`<div style="font-size:13px;margin-bottom:8px">${esc(r.description)}</div>`:""}
       <div class="actions">
-        <button class="btn small" type="button" onclick="openResourcePdf(${r.id})">📄 Open PDF</button>
+        <button class="btn small" type="button" onclick="openAdminResource(${r.id})">${String(r.type||"").toLowerCase()==="video"?"▶ Open Video":"📄 Open Resource"}</button>
         <button class="muted small" onclick="editResource(${r.id})">✏️ Edit</button>
         <button class="danger small" onclick="deleteResource(${r.id})">Delete</button>
       </div>
@@ -598,29 +625,32 @@ function renderResources(){
 function editResource(id){
   const r=resources.find(x=>x.id===id); if(!r)return;
   rid.value=r.id; title.value=r.title; type.value=r.type; subject.value=r.subject||""; loadChapterOptions(r.chapter||"");
-  document.getElementById("pdf_file").value=""; description.value=r.description||"";
+  document.getElementById("pdf_file").value=""; document.getElementById("resource_url").value=r.file_url||""; description.value=r.description||"";
   saveBtn.textContent="💾 Save Changes";cancelEditBtn(true);
   scrollTo({top:document.querySelectorAll(".panel")[2].offsetTop-60,behavior:"smooth"});
 }
 function cancelEditBtn(show){document.getElementById("cancelEdit").classList.toggle("hidden",!show);}
 function cancelEdit(){
   document.getElementById("resourceForm").reset();rid.value="";
-  saveBtn.textContent="＋ Add Resource";document.getElementById("pdf_file").value="";cancelEditBtn(false);resourceMsg.textContent="";
+  saveBtn.textContent="＋ Add Resource";document.getElementById("pdf_file").value="";document.getElementById("resource_url").value="";cancelEditBtn(false);resourceMsg.textContent="";
 }
 document.getElementById("resourceForm").addEventListener("submit",async e=>{
   e.preventDefault();
-  resourceMsg.textContent="Preparing PDF…";
+  resourceMsg.textContent="Preparing resource…";
   try{
     const id=rid.value;
     const file=document.getElementById("pdf_file").files[0];
 
-    if(!id && !file) throw new Error("Please select a PDF file.");
+    const resourceUrl=document.getElementById("resource_url").value.trim();
+    if(!id && !file && !resourceUrl) throw new Error("Choose a file or enter a resource/video URL.");
     if(file){
       const name=file.name||"";
-      const looksPdf=file.type==="application/pdf" || name.toLowerCase().endsWith(".pdf");
-      if(!looksPdf) throw new Error("Only PDF files are allowed.");
-      if(!file.size) throw new Error("Selected PDF file is empty or could not be read by Chrome. Please choose the PDF again from Files.");
-      if(file.size>15*1024*1024) throw new Error("PDF must be 15 MB or smaller.");
+      const isVideo=type.value==="Video";
+      const validVideo=(file.type||"").startsWith("video/") || /\.(mp4|webm|ogv)$/i.test(name);
+      const validPdf=file.type==="application/pdf" || name.toLowerCase().endsWith(".pdf");
+      if(isVideo?!validVideo:!validPdf) throw new Error(isVideo?"Select an MP4, WebM or OGV video file.":"Select a PDF file for this resource type.");
+      if(!file.size) throw new Error("Selected file is empty or could not be read. Please choose it again.");
+      if(file.size>(isVideo?25:15)*1024*1024) throw new Error(isVideo?"Video must be 25 MB or smaller; use a video URL for larger files.":"PDF must be 15 MB or smaller.");
     }
 
     const body={
@@ -628,7 +658,10 @@ document.getElementById("resourceForm").addEventListener("submit",async e=>{
       type:type.value,
       subject:subject.value,
       chapter:chapter.value.trim(),
-      description:description.value.trim()
+      description:description.value.trim(),
+      file_url:resourceUrl,
+      mime_type:file?.type||"",
+      file_name:file?.name||""
     };
 
     if(file){
@@ -647,14 +680,14 @@ document.getElementById("resourceForm").addEventListener("submit",async e=>{
       body.file_data=dataUrl;
     }
 
-    resourceMsg.textContent="Uploading PDF…";
+    resourceMsg.textContent="Saving resource…";
     await api(id?`/api/resources/${id}`:"/api/resources",{
       method:id?"PUT":"POST",
       body:JSON.stringify(body)
     });
     cancelEdit();
     await loadAll();
-    resourceMsg.textContent="✅ PDF saved successfully.";
+    resourceMsg.textContent="✅ Resource saved successfully.";
   }catch(err){
     resourceMsg.textContent="❌ "+err.message;
   }
@@ -804,6 +837,31 @@ if(token){
   loadAll();
   setInterval(()=>loadAll().catch(()=>{}),30000);
 }
+
+async function openAdminResource(id){
+ const r=resources.find(x=>String(x.id)===String(id)); if(!r)return;
+ if(String(r.type||'').toLowerCase()==='video'){
+   if(r.file_url){window.open(r.file_url,'_blank','noopener');return;}
+   window.open(`/api/resources/${encodeURIComponent(id)}/video`,'_blank','noopener');return;
+ }
+ await openResourcePdf(id);
+}
+let mcqs=[];
+async function loadLearningSubjects(){
+ try{const d=await api('/api/admin/certificate-options');const rows=d.subjects||[];const opts='<option value="">Select subject</option>'+rows.map(x=>`<option value="${esc(x.name)}">${esc(x.name)}</option>`).join('');document.getElementById('mcqSubject').innerHTML=opts;document.getElementById('mcqSubjectFilter').innerHTML='<option value="">All Subjects</option>'+rows.map(x=>`<option value="${esc(x.name)}">${esc(x.name)}</option>`).join('');document.getElementById('certSubject').innerHTML=opts;}catch(e){document.getElementById('mcqMsg').textContent='Could not load subjects: '+e.message;}
+}
+async function loadMcqs(){try{const f=document.getElementById('mcqSubjectFilter').value;const d=await api('/api/admin/mcq'+(f?'?subject='+encodeURIComponent(f):''));mcqs=d.questions||[];renderMcqs();const st=await api('/api/admin/mcq-stats');document.getElementById('mcqStats').textContent=`${st.total_questions} active questions · ${st.subjects} subjects · ${st.chapters} chapters with 50+ questions`; }catch(e){document.getElementById('mcqMsg').textContent='MCQ load error: '+e.message;}}
+function renderMcqs(){const q=(document.getElementById('mcqSearch')?.value||'').toLowerCase(),ch=(document.getElementById('mcqChapterFilter')?.value||'').toLowerCase();const list=mcqs.filter(x=>(!q||x.question.toLowerCase().includes(q))&&(!ch||String(x.chapter).toLowerCase().includes(ch)));document.getElementById('mcqList').innerHTML=list.map(x=>`<div class="item"><b>${esc(x.subject)} → ${esc(x.chapter)}</b><p>${esc(x.question)}</p><div class="meta">${(x.options||[]).map((o,i)=>`${i===x.correct_index?'✓ ':''}${String.fromCharCode(65+i)}. ${esc(o)}`).join('<br>')}</div><div class="actions"><button class="muted small" onclick="editMcq(${x.id})">Edit</button><button class="danger small" onclick="deleteMcq(${x.id})">Delete</button></div></div>`).join('')||'<div class="empty">No questions found.</div>';}
+function resetMcqForm(){document.getElementById('mcqForm').reset();document.getElementById('mcqId').value='';document.getElementById('mcqSave').textContent='＋ Add Question';}
+function editMcq(id){const x=mcqs.find(q=>Number(q.id)===Number(id));if(!x)return;mcqId.value=x.id;mcqSubject.value=x.subject;mcqChapter.value=x.chapter;mcqQuestion.value=x.question;mcqA.value=x.options[0];mcqB.value=x.options[1];mcqC.value=x.options[2];mcqD.value=x.options[3];mcqCorrect.value=x.correct_index;mcqExplanation.value=x.explanation||'';mcqDifficulty.value=x.difficulty||'basic';mcqSave.textContent='Save Question';document.getElementById('mcqManager').scrollIntoView({behavior:'smooth'});}
+document.getElementById('mcqForm').addEventListener('submit',async e=>{e.preventDefault();mcqMsg.textContent='Saving…';const id=mcqId.value;const body={subject:mcqSubject.value,chapter:mcqChapter.value.trim(),question:mcqQuestion.value.trim(),options:[mcqA.value.trim(),mcqB.value.trim(),mcqC.value.trim(),mcqD.value.trim()],correct_index:Number(mcqCorrect.value),explanation:mcqExplanation.value.trim(),difficulty:mcqDifficulty.value};try{await api(id?`/api/admin/mcq/${id}`:'/api/admin/mcq',{method:id?'PATCH':'POST',body:JSON.stringify(body)});mcqMsg.textContent='Saved.';resetMcqForm();await loadMcqs();}catch(err){mcqMsg.textContent=err.message;}});
+async function deleteMcq(id){if(!confirm('Deactivate this question? It will no longer appear in new quizzes.'))return;try{await api('/api/admin/mcq/'+id,{method:'DELETE'});await loadMcqs();}catch(e){alert(e.message);}}
+async function loadCertificates(){try{const [opts,certs]=await Promise.all([api('/api/admin/certificate-options'),api('/api/admin/certificates')]);certUser.innerHTML='<option value="">Select student</option>'+(opts.users||[]).map(u=>`<option value="${u.id}">${esc(u.display_name||u.instagram_username)} (@${esc(u.instagram_username)})</option>`).join('');certSubject.innerHTML='<option value="">Select subject</option>'+(opts.subjects||[]).map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('');certificateList.innerHTML=(certs.certificates||[]).map(c=>`<div class="item"><b>${esc(c.student)} — ${esc(c.subject||'Course')}</b><div>${esc(c.chapter||'')} · ${c.score}/${c.max_score} (${Number(c.percentage||0)}%)</div><div class="meta">${esc(c.certificate_code)} · ${date(c.issued_at)}</div><div class="actions"><button class="btn small" onclick="openCertificatePreview('${esc(c.certificate_code)}')">Preview / PDF</button><button class="danger small" onclick="deleteCertificate('${esc(c.certificate_code)}')">Delete</button></div></div>`).join('')||'<div class="empty">No certificates issued yet.</div>';}catch(e){certMsg.textContent='Certificate load error: '+e.message;}}
+function updateCertPercent(){const a=Number(certScore.value),b=Number(certMax.value);certPercent.value=b>0&&a>=0&&a<=b?(a/b*100).toFixed(2)+'%':'';}
+certScore.addEventListener('input',updateCertPercent);certMax.addEventListener('input',updateCertPercent);
+document.getElementById('manualCertificateForm').addEventListener('submit',async e=>{e.preventDefault();certMsg.textContent='Creating certificate…';try{const d=await api('/api/admin/certificates/manual',{method:'POST',body:JSON.stringify({user_id:Number(certUser.value),subject_id:Number(certSubject.value),course:certCourse.value.trim(),score:Number(certScore.value),max_score:Number(certMax.value)})});certMsg.textContent=`Created · ${d.percentage}% · ${d.certificate_code}`;await loadCertificates();openCertificatePreview(d.certificate_code);}catch(err){certMsg.textContent=err.message;}});
+async function openCertificatePreview(code){try{const r=await fetch('/api/admin/certificates/'+encodeURIComponent(code)+'/preview',{headers:{'Authorization':'Bearer '+token}});if(!r.ok)throw new Error('Could not open certificate preview');const blob=await r.blob();const url=URL.createObjectURL(blob);window.open(url,'_blank','noopener');setTimeout(()=>URL.revokeObjectURL(url),60000);}catch(e){alert(e.message);}}
+async function deleteCertificate(code){const password=prompt('Confirm with current admin password to delete this certificate:');if(password===null)return;try{await api('/api/admin/certificates/'+encodeURIComponent(code),{method:'DELETE',body:JSON.stringify({password})});await loadCertificates();}catch(e){alert(e.message);}}
 </script>
 </body>
 </html>
