@@ -2043,7 +2043,29 @@ app.post("/api/admin/reset-password", async (req, res) => {
 // =========================
 
 setupDatabase()
-  .then(() => {
+  .then(async () => {
+    // Create/update the admin account automatically during startup when
+    // ADMIN_USERNAME and ADMIN_PASSWORD are configured in Render.
+    // This avoids requiring Render Shell for initial admin setup.
+    const configuredAdminUsername = String(process.env.ADMIN_USERNAME || "").trim();
+    const configuredAdminPassword = String(process.env.ADMIN_PASSWORD || "");
+
+    if (configuredAdminUsername && configuredAdminPassword) {
+      if (configuredAdminPassword.length < 8) {
+        throw new Error("ADMIN_PASSWORD must be at least 8 characters.");
+      }
+
+      const adminHash = await bcrypt.hash(configuredAdminPassword, 12);
+      await pool.query(
+        `INSERT INTO admins (username, password_hash)
+         VALUES ($1, $2)
+         ON CONFLICT (username)
+         DO UPDATE SET password_hash = EXCLUDED.password_hash`,
+        [configuredAdminUsername, adminHash]
+      );
+      console.log(`Admin account created/updated from environment: ${configuredAdminUsername}`);
+    }
+
     app.listen(PORT, () => {
       console.log(
         `truth.oflifes server running on port ${PORT}`
